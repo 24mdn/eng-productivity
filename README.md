@@ -109,6 +109,48 @@ shipped code to production N times this week." The next fix: wire at least one r
 a real deploy target (e.g. a Vercel/Render preview or production deploy step) so that squad's
 number reflects an actual release, not just a passing build.
 
+## 90-day plan
+
+This prototype (5 demo repos, 2 sources, 5 metrics) is a proof of the architecture, not the
+finished mandate. If this became the real role, here's what the next 90 days would actually
+build on top of it, solo:
+
+**Days 1-30 — replace the prototype's data with the real thing.**
+- Point the same ingestion pipeline at the real Tech domain's repos instead of 5 demo ones — no
+  architecture change, `squads` is already a table, not a hardcoded list, for exactly this
+  reason.
+- Add a genuine third source: a sprint/PM tool (Linear or Jira) for cycle time and sprint
+  completion — the one metric family the JD explicitly names that this prototype doesn't have
+  yet, since it only had GitHub-family sources to work with.
+- Wire at least one squad's CI workflow to a real deploy target (not the CI-success proxy
+  documented above as this build's known limitation) so deployment frequency starts meaning
+  "shipped," not "passed a build."
+
+**Days 31-60 — baselines, and the first intervention that moves them.**
+- Publish a real cycle-time/deployment-frequency baseline per squad from 30 days of real data,
+  not demo data.
+- Ship the first concrete intervention the data justifies — e.g. surfacing PRs stuck past a
+  review-time threshold directly on the squad lead's dashboard (not just a buried metric) — and
+  measure whether that squad's review-turnaround number actually moves. A dashboard that only
+  displays numbers doesn't satisfy "drive the interventions that move them"; something has to
+  act on what it shows.
+
+**Days 61-90 — prove the architecture generalizes past engineering.**
+- Add one non-engineering domain's KPIs (whatever the CEO office's highest-priority function is
+  — support, ops, whatever has its own source system) as a second tab on the same exec view,
+  using the same ingestion → Postgres/RLS → dashboard pattern already built. This is the direct
+  test of "system design — does the architecture scale to new domains without a rebuild": if it
+  needs one, the architecture failed; if it's a new row in a table and a new ingestion adapter,
+  it didn't.
+
+**Day-90 proof point (checkable by a non-technical CEO-office reader, no engineer required):**
+Open the exec dashboard, already logged in with an existing account. It shows, for every active
+Tech squad: deployment frequency and change failure rate trending over the last 90 days against
+their day-1 baseline, a "last updated" timestamp proving it's live rather than a snapshot someone
+prepared for this meeting, and at least one non-engineering domain's KPI panel on the same page.
+Nothing on that page was typed in by hand — every number traces back to a receipt, the same way
+this prototype's drill-downs already do.
+
 ## Running locally
 
 One service, one terminal:
