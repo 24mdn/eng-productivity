@@ -16,6 +16,9 @@ export interface PullRequestFact {
   firstCommitAt: Date | null;
   state?: string | null;
   baseRefName?: string | null;
+  // The commit SHA this PR's merge produced — matched against a workflow run's headSha to
+  // correlate a CI-tier deploy event back to the PR that shipped it. Undefined for unmerged PRs.
+  mergeCommitSha?: string | null;
 }
 
 export interface ReviewFact {
@@ -32,6 +35,8 @@ export interface WorkflowRunFact {
   conclusion: string | null;
   runStartedAt: Date;
   runCompletedAt: Date | null;
+  // The commit this run actually built — matched against a merged PR's mergeCommitSha.
+  headSha?: string | null;
 }
 
 export interface IssueFact {
@@ -191,7 +196,10 @@ export function lastNIsoWeeks(n: number, from: Date = new Date()): WeekWindow[] 
 
 /** The key abstraction: downstream metric code never cares which proxy is active. Three
  * tiers, most-to-least authoritative:
- * 1. Real CI/CD (hasActions=true): a successful Actions run on the default branch IS a deploy.
+ * 1. Real CI/CD (hasActions=true): a successful Actions run on the default branch IS a deploy,
+ *    matched back to the PR it shipped (if any) by comparing the run's headSha against merged
+ *    PRs' mergeCommitSha — a run with no matching PR (raw commits straight to the default
+ *    branch) just leaves pullRequestNumber null.
  * 2. PR-merge proxy: no Actions workflows, but PRs get merged to the default branch — each
  *    merge stands in for a "deploy".
  * 3. Raw-commit proxy: no Actions AND zero merged PRs ever — each commit on the default
@@ -204,12 +212,17 @@ export function deriveDeployEvents(
   commits: CommitFact[] = []
 ): DeployEvent[] {
   if (hasActions) {
+    const mergeShaToPr = new Map(
+      pullRequests
+        .filter((pr) => pr.state === "MERGED" && pr.mergeCommitSha && pr.baseRefName === defaultBranch)
+        .map((pr) => [pr.mergeCommitSha as string, pr.number])
+    );
     return workflowRuns
       .filter((run) => run.conclusion !== null)
       .map((run) => ({
         occurredAt: run.runCompletedAt ?? run.runStartedAt,
         success: run.conclusion === "success",
-        pullRequestNumber: null,
+        pullRequestNumber: run.headSha ? mergeShaToPr.get(run.headSha) ?? null : null,
         source: "workflow_run" as const,
       }));
   }

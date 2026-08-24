@@ -91,6 +91,7 @@ async function main() {
     firstCommitAt: pr.firstCommitAt,
     state: pr.state,
     baseRefName: pr.baseRefName,
+    mergeCommitSha: pr.mergeCommitSha,
   }));
 
   const deployEvents = deriveDeployEvents(
@@ -99,6 +100,7 @@ async function main() {
       conclusion: run.conclusion,
       runStartedAt: run.runStartedAt,
       runCompletedAt: run.runCompletedAt,
+      headSha: run.headSha,
     })),
     inspection.hasActions,
     inspection.defaultBranch,

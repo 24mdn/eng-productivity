@@ -33,6 +33,7 @@ query PullRequests($owner: String!, $name: String!, $after: String) {
         closedAt
         baseRefName
         headRefName
+        mergeCommit { oid }
         author { login }
         commits(first: 100) { nodes { commit { committedDate } } }
         reviews(first: 50) { nodes { author { login } state submittedAt } }
@@ -74,6 +75,7 @@ class FetchedPullRequest:
     head_ref_name: str
     first_commit_at: datetime | None
     reviews: list[FetchedReview]
+    merge_commit_sha: str | None = None
 
 
 @dataclass
@@ -84,6 +86,7 @@ class FetchedWorkflowRun:
     conclusion: str | None
     run_started_at: datetime
     run_completed_at: datetime | None
+    head_sha: str | None = None
 
 
 @dataclass
@@ -172,6 +175,7 @@ class GithubClient:
                         run_completed_at=(
                             _parse_iso(run["updated_at"]) if run.get("updated_at") else None
                         ),
+                        head_sha=run.get("head_sha"),
                     )
                 )
         return runs
@@ -273,6 +277,7 @@ class GithubClient:
                         base_ref_name=node["baseRefName"],
                         head_ref_name=node["headRefName"],
                         first_commit_at=min(commit_dates) if commit_dates else None,
+                        merge_commit_sha=(node.get("mergeCommit") or {}).get("oid"),
                         reviews=[
                             FetchedReview(
                                 reviewer_login=(review.get("author") or {}).get("login"),

@@ -18,6 +18,7 @@ class DerivedInputs:
                 first_commit_at=pr.first_commit_at,
                 state=pr.state,
                 base_ref_name=pr.base_ref_name,
+                merge_commit_sha=pr.merge_commit_sha,
             )
             for pr in facts.pull_requests
         ]
@@ -31,6 +32,7 @@ class DerivedInputs:
                 conclusion=run.conclusion,
                 run_started_at=run.run_started_at,
                 run_completed_at=run.run_completed_at,
+                head_sha=run.head_sha,
             )
             for run in facts.workflow_runs
         ]

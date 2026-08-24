@@ -228,6 +228,33 @@ def test_derive_deploy_events_uses_workflow_runs_when_actions_exist():
     assert events[1].success is False
 
 
+def test_derive_deploy_events_correlates_workflow_run_to_merged_pr_via_head_sha():
+    prs = [
+        PullRequestFact(number=7, created_at=dt(2026, 1, 1), merged_at=dt(2026, 1, 2),
+                         first_commit_at=dt(2026, 1, 1, 12), state="MERGED",
+                         base_ref_name="main", merge_commit_sha="abc123"),
+        # merged but to the wrong branch — must not be matched even if a run's head_sha
+        # coincidentally equals its merge_commit_sha
+        PullRequestFact(number=8, created_at=dt(2026, 1, 1), merged_at=dt(2026, 1, 2),
+                         first_commit_at=None, state="MERGED", base_ref_name="staging",
+                         merge_commit_sha="def456"),
+    ]
+    runs = [
+        WorkflowRunFact(conclusion="success", run_started_at=dt(2026, 1, 2),
+                         run_completed_at=dt(2026, 1, 2, 1), head_sha="abc123"),
+        WorkflowRunFact(conclusion="success", run_started_at=dt(2026, 1, 3),
+                         run_completed_at=dt(2026, 1, 3, 1), head_sha="def456"),
+        # no matching PR at all — e.g. a raw commit pushed straight to the default branch
+        WorkflowRunFact(conclusion="success", run_started_at=dt(2026, 1, 4),
+                         run_completed_at=dt(2026, 1, 4, 1), head_sha="unrelated-sha"),
+    ]
+    events = derive_deploy_events(prs, workflow_runs=runs, has_actions=True, default_branch="main")
+    assert len(events) == 3
+    assert events[0].pull_request_number == 7
+    assert events[1].pull_request_number is None  # wrong base branch, correctly unmatched
+    assert events[2].pull_request_number is None  # no PR at all, correctly unmatched
+
+
 # --- derive_incidents -----------------------------------------------------------
 
 

@@ -157,6 +157,7 @@ export interface FetchedWorkflowRun {
   conclusion: string | null;
   runStartedAt: Date;
   runCompletedAt: Date | null;
+  headSha: string | null;
 }
 
 export async function fetchWorkflowRuns(
@@ -178,6 +179,7 @@ export async function fetchWorkflowRuns(
         conclusion: run.conclusion,
         runStartedAt: new Date(run.run_started_at ?? run.created_at),
         runCompletedAt: run.updated_at ? new Date(run.updated_at) : null,
+        headSha: run.head_sha ?? null,
       });
     }
   }

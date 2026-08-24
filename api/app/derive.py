@@ -40,6 +40,9 @@ class PullRequestFact:
     first_commit_at: datetime | None
     state: str | None = None
     base_ref_name: str | None = None
+    # The commit SHA this PR's merge produced — matched against a workflow run's head_sha to
+    # correlate a CI-tier deploy event back to the PR that shipped it. None for unmerged PRs.
+    merge_commit_sha: str | None = None
 
 
 @dataclass
@@ -59,6 +62,8 @@ class WorkflowRunFact:
     conclusion: str | None
     run_started_at: datetime
     run_completed_at: datetime | None
+    # The commit this run actually built — matched against a merged PR's merge_commit_sha.
+    head_sha: str | None = None
 
 
 @dataclass
@@ -201,7 +206,10 @@ def derive_deploy_events(
     tiers, most-to-least authoritative:
 
     1. Real CI/CD (has_actions=True): a successful Actions run on the default branch IS a
-       deploy.
+       deploy. Matched back to the PR it shipped (if any) by comparing the run's head_sha
+       against merged PRs' merge_commit_sha — a run on a repo with no PR workflow (raw commits
+       straight to the default branch) simply won't match anything, and pull_request_number
+       stays None, same as before this correlation existed.
     2. PR-merge proxy: no Actions workflows, but PRs get merged to the default branch — each
        merge stands in for a "deploy" (lhagli-api's confirmed profile when it still used PRs).
     3. Raw-commit proxy: no Actions AND zero merged PRs ever (confirmed empirically for all
@@ -210,11 +218,16 @@ def derive_deploy_events(
        the least authoritative tier and should be disclosed most prominently in the UI.
     """
     if has_actions:
+        merge_sha_to_pr = {
+            pr.merge_commit_sha: pr.number
+            for pr in pull_requests
+            if pr.state == "MERGED" and pr.merge_commit_sha and pr.base_ref_name == default_branch
+        }
         return [
             DeployEvent(
                 occurred_at=run.run_completed_at or run.run_started_at,
                 success=run.conclusion == "success",
-                pull_request_number=None,  # would need head-SHA -> PR matching to populate
+                pull_request_number=merge_sha_to_pr.get(run.head_sha),
                 source="workflow_run",
             )
             for run in workflow_runs

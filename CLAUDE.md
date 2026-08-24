@@ -100,19 +100,15 @@ see `TRANSITION.md`/git history if you need the old design).
 ## What's left
 
 - A real deploy target on at least one repo's CI workflow — see README's "Known limitation."
-- `lead_time_for_changes` stays null on every squad now that all 5 run on the `workflow_run`
-  deploy-proxy tier — `derive_deploy_events`'s CI-tier branch never sets
-  `pull_request_number` (`api/app/derive.py:217`, mirrored in `lib/metrics.ts`), so there's no
-  deploy-event → PR correlation to compute lead time from even when a real PR exists (confirmed
-  directly: merging a real PR on `lhagli-api` populated `pr_review_turnaround`, which doesn't
-  need that correlation, but left `lead_time_for_changes` null). Fixing it means fetching each
-  workflow run's `head_sha` and each PR's `merge_commit_sha` (neither is fetched today —
-  `FetchedWorkflowRun`/`FetchedPullRequest` don't have those fields) and matching them, in both
-  `derive.py` and its `lib/metrics.ts` mirror.
 
-Done: scheduled ingestion (repo secrets set, weekly cron verified working end-to-end via a real
-`workflow_dispatch` run against the live Supabase project), 90-day plan (in README.md),
-deployment (https://eng-productivity.vercel.app, linked to
+Done: `derive_deploy_events`'s CI-tier branch now correlates a workflow run back to the PR it
+shipped, by matching the run's `head_sha` against merged PRs' `merge_commit_sha`
+(`api/app/derive.py`, mirrored in `lib/metrics.ts`) — `lead_time_for_changes` was null for every
+squad before this since the correlation was never implemented; confirmed fixed against real data
+(merging a PR on `lhagli-api` now populates it, not just `pr_review_turnaround`, which never
+needed the correlation). Also done: scheduled ingestion (repo secrets set, weekly cron verified
+working end-to-end via a real `workflow_dispatch` run against the live Supabase project), 90-day
+plan (in README.md), deployment (https://eng-productivity.vercel.app, linked to
 
 Done: deployment (https://eng-productivity.vercel.app, linked to
 `github.com/24mdn/eng-productivity`), confirmed publicly reachable with no auth gate. N6
