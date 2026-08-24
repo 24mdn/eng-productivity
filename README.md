@@ -57,11 +57,15 @@ manually to populate `metrics_snapshots`; it never serves a live request.
 `omnirealestate-frontend`. All 5 now run on the **workflow_run** deploy-proxy tier
 (`has_actions=true`) — each repo has a real GitHub Actions CI workflow (triggered on push to its
 default branch), so `deployment_frequency`/`change_failure_rate`/`mttr` come from actual CI run
-outcomes, not a commit- or merge-count proxy. None of the 5 repos have ever used pull requests
-(solo/AI-assisted development pushed straight to the default branch), so PR-only metrics (lead
-time, review turnaround) stay empty across the board — that's a real, disclosed data gap, not a
-bug. `omnirealestate-api`'s workflow predates this project and is a scheduled dependency-graph
-job, not an app deploy — see **Known limitation** below.
+outcomes, not a commit- or merge-count proxy. 4 of the 5 repos (`web`, `mobile`,
+`omnirealestate-api`, `omnirealestate-frontend`) have never used pull requests (solo/AI-assisted
+development pushed straight to the default branch), so their PR-only metrics (lead time, review
+turnaround) stay empty — a real, disclosed data gap, not a bug. `backend` (`lhagli-api`) is the
+exception: it now has one real merged PR (opened, reviewed, and merged through this project, not
+fabricated data — a genuine GitHub PR/review/merge, just a small one), which is why its lead time
+and review turnaround are non-empty while the other 4 squads' aren't. `omnirealestate-api`'s
+workflow predates this project and is a scheduled dependency-graph job, not an app deploy — see
+**Known limitation** below.
 
 ## Data sources
 
@@ -84,19 +88,27 @@ pulled by the offline ingestion job (`api/`) ahead of time into Postgres — see
 
 | Metric | Type | Status |
 |---|---|---|
-| Deployment frequency | DORA | Live — real Actions run outcomes |
-| Lead time for changes | DORA | Live (empty for these repos — no PRs exist to measure from) |
-| Change failure rate | DORA | Live — real Actions run outcomes |
-| MTTR | DORA | Live (empty for these repos — no labeled incidents/reverts yet) |
-| PR review turnaround | SPACE (Efficiency/Flow) | Live (empty for these repos — no PRs exist) |
+| Deployment frequency | DORA | Live — real Actions run outcomes, every squad |
+| Lead time for changes | DORA | Live — non-empty for `backend` (1 real merged PR); empty for the other 4 squads (no PRs) |
+| Change failure rate | DORA | Live — non-empty for `backend` (1 real closed `bug` issue); 0% elsewhere (no incidents) |
+| MTTR | DORA | Live — non-empty for `backend` (1 real closed `bug` issue); empty elsewhere (no incidents) |
+| PR review turnaround | SPACE (Efficiency/Flow) | Live — non-empty for `backend` (1 real review); empty for the other 4 squads (no PRs) |
 
 **Every metric is computed from live data** — none are manually entered or hand-authored. The
 only thing that's seeded/synthetic in this project is the **6 demo login accounts**
 (fixed emails + one shared password, created by `api/app/seed_users.py`) — those exist because
 this is a solo demo project with no real company directory to authenticate against, not because
 any metric value is fabricated. A metric reading "empty" above means the underlying GitHub data
-genuinely doesn't exist yet (e.g. these repos have never had a pull request), not that it was
-seeded with placeholder numbers.
+genuinely doesn't exist yet (e.g. 4 of the 5 repos have never had a pull request), not that it
+was seeded with placeholder numbers.
+
+**A note on `backend`'s 100% change failure rate this week:** that number is real, not a bug —
+`change_failure_rate` correctly flags any successful deploy followed by a labeled incident within
+2 days, and because this demo compressed a "week" of activity (4 CI deploys, 1 real bug issue
+opened and closed) into a few minutes rather than spreading it across an actual week, every one
+of `backend`'s deploys this week falls inside that 2-day window of the one incident. In a real
+week of usage this same formula would produce a normal, much lower rate; the 100% here is an
+artifact of demo timing, not a formula bug or a fabricated number.
 
 ## Known limitation (what I'd fix next)
 
@@ -221,16 +233,28 @@ uv/venv.
   still 404'd on every one of them because "Repository permissions" (Contents/Issues/Actions/Pull
   requests → Read-only) hadn't been set. `GET /user/repos` with the token is the fast way to
   check what it can actually see, independent of what you think you selected.
-- **All 5 target repos have zero pull requests ever, not just zero this window.** Solo/AI-assisted
-  development pushed straight to the default branch. The deploy-event proxy (`lib/metrics.ts`'s
-  `deriveDeployEvents`, mirrored in `api/app/derive.py`'s `derive_deploy_events` for ingestion)
-  has three tiers, most-to-least authoritative: real CI/CD (`hasActions`) →
-  merged-PR-to-default-branch → raw commits on the default branch. All 5 squads now run on the
-  first, most-authoritative tier (a CI workflow was added to each repo that lacked one) —
-  surfaced via `deployProxy` on every squad and disclosed in the UI's caveat banner. The
-  zero-PRs fact still stands though, which is why lead time and review turnaround stay empty
-  regardless of the deploy-proxy tier — those two metrics need a PR to measure from, not a
-  deploy event.
+- **4 of the 5 target repos have zero pull requests ever, not just zero this window** (`backend`/
+  `lhagli-api` is now the exception — see below). Solo/AI-assisted development pushed straight to
+  the default branch. The deploy-event proxy (`lib/metrics.ts`'s `deriveDeployEvents`, mirrored
+  in `api/app/derive.py`'s `derive_deploy_events` for ingestion) has three tiers, most-to-least
+  authoritative: real CI/CD (`hasActions`) → merged-PR-to-default-branch → raw commits on the
+  default branch. All 5 squads now run on the first, most-authoritative tier (a CI workflow was
+  added to each repo that lacked one) — surfaced via `deployProxy` on every squad and disclosed
+  in the UI's caveat banner. Lead time and review turnaround still need a PR to measure from
+  regardless of deploy-proxy tier, which is why they stay empty for the 4 PR-less squads.
+- **`backend` (`lhagli-api`) has exactly one real pull request**, opened/reviewed/merged through
+  this project specifically to prove the pipeline handles real PR data, not to inflate the
+  numbers — see PR #1 on that repo. `derive_deploy_events`'s CI-tier branch now correlates a
+  workflow run's `head_sha` back to that PR's `merge_commit_sha`, so both
+  `lead_time_for_changes` and `pr_review_turnaround` are non-null for `backend` and only
+  `backend` — that asymmetry is expected, not a bug, given only one squad has any PR history at
+  all.
+- **GitHub's REST `labels` query param is an AND filter across every label listed, not OR.**
+  `fetch_incident_labeled_issues` called `/issues?labels=bug,incident`, which only matches an
+  issue carrying *both* labels simultaneously — something no realistic issue does, so this had
+  silently never matched a single issue in this project's history until it was caught while
+  testing MTTR with a real labeled issue. Fixed by querying each label separately and deduping
+  by issue number, in both `api/app/github_client.py` and its `lib/github/queries.ts` mirror.
 - **`lhagli-mobile`'s CI workflow fails consistently, on purpose left unfixed.** It's a real
   strict-typecheck failure (10 genuine pre-existing TypeScript errors in that repo's `app/`/
   `src/`, confirmed unrelated to the workflow itself), not a broken workflow — so that squad's

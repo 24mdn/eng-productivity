@@ -194,28 +194,34 @@ export interface FetchedIssue {
   labels: string[];
 }
 
+/** GitHub's REST `labels` param is an AND filter across every label listed, not OR — a single
+ * `labels: "bug,incident"` call only ever matches an issue carrying *both* labels at once,
+ * which none realistically do. To get "has bug OR incident", fetch each label separately and
+ * dedupe by issue number. */
 export async function fetchIncidentLabeledIssues(
   octokit: GithubClient,
   owner: string,
   repo: string
 ): Promise<FetchedIssue[]> {
-  const issues: FetchedIssue[] = [];
-  for await (const response of octokit.paginate.iterator(
-    octokit.rest.issues.listForRepo,
-    { owner, repo, state: "all", labels: "bug,incident", per_page: 100 }
-  )) {
-    for (const issue of response.data) {
-      if (issue.pull_request) continue; // GitHub returns PRs from this endpoint too
-      issues.push({
-        number: issue.number,
-        title: issue.title,
-        createdAt: new Date(issue.created_at),
-        closedAt: issue.closed_at ? new Date(issue.closed_at) : null,
-        labels: issue.labels.map((l) => (typeof l === "string" ? l : l.name ?? "")),
-      });
+  const byNumber = new Map<number, FetchedIssue>();
+  for (const label of ["bug", "incident"]) {
+    for await (const response of octokit.paginate.iterator(
+      octokit.rest.issues.listForRepo,
+      { owner, repo, state: "all", labels: label, per_page: 100 }
+    )) {
+      for (const issue of response.data) {
+        if (issue.pull_request) continue; // GitHub returns PRs from this endpoint too
+        byNumber.set(issue.number, {
+          number: issue.number,
+          title: issue.title,
+          createdAt: new Date(issue.created_at),
+          closedAt: issue.closed_at ? new Date(issue.closed_at) : null,
+          labels: issue.labels.map((l) => (typeof l === "string" ? l : l.name ?? "")),
+        });
+      }
     }
   }
-  return issues;
+  return [...byNumber.values()];
 }
 
 export interface FetchedCommit {

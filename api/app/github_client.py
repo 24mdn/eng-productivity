@@ -181,16 +181,20 @@ class GithubClient:
         return runs
 
     async def fetch_incident_labeled_issues(self, owner: str, repo: str) -> list[FetchedIssue]:
-        issues: list[FetchedIssue] = []
-        async for page in self._paginate(
-            f"/repos/{owner}/{repo}/issues",
-            {"state": "all", "labels": "bug,incident", "per_page": 100},
-        ):
-            for issue in page:
-                if "pull_request" in issue:
-                    continue  # GitHub returns PRs from this endpoint too
-                issues.append(
-                    FetchedIssue(
+        """GitHub's REST `labels` query param is an AND filter across every label listed, not
+        OR — a single `labels=bug,incident` call only ever matches an issue carrying *both*
+        labels at once, which none realistically do. To get "has bug OR incident", fetch each
+        label separately and dedupe by issue number."""
+        by_number: dict[int, FetchedIssue] = {}
+        for label in ("bug", "incident"):
+            async for page in self._paginate(
+                f"/repos/{owner}/{repo}/issues",
+                {"state": "all", "labels": label, "per_page": 100},
+            ):
+                for issue in page:
+                    if "pull_request" in issue:
+                        continue  # GitHub returns PRs from this endpoint too
+                    by_number[issue["number"]] = FetchedIssue(
                         number=issue["number"],
                         title=issue["title"],
                         created_at=_parse_iso(issue["created_at"]),
@@ -202,8 +206,7 @@ class GithubClient:
                             for label in issue.get("labels", [])
                         ],
                     )
-                )
-        return issues
+        return list(by_number.values())
 
     async def fetch_default_branch_commits(
         self, owner: str, repo: str, default_branch: str, max_age_days: int = 180

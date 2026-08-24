@@ -101,17 +101,27 @@ see `TRANSITION.md`/git history if you need the old design).
 
 - A real deploy target on at least one repo's CI workflow — see README's "Known limitation."
 
-Done: `derive_deploy_events`'s CI-tier branch now correlates a workflow run back to the PR it
-shipped, by matching the run's `head_sha` against merged PRs' `merge_commit_sha`
-(`api/app/derive.py`, mirrored in `lib/metrics.ts`) — `lead_time_for_changes` was null for every
-squad before this since the correlation was never implemented; confirmed fixed against real data
-(merging a PR on `lhagli-api` now populates it, not just `pr_review_turnaround`, which never
-needed the correlation). Also done: scheduled ingestion (repo secrets set, weekly cron verified
-working end-to-end via a real `workflow_dispatch` run against the live Supabase project), 90-day
-plan (in README.md), deployment (https://eng-productivity.vercel.app, linked to
+## Done (recent, non-obvious)
 
-Done: deployment (https://eng-productivity.vercel.app, linked to
-`github.com/24mdn/eng-productivity`), confirmed publicly reachable with no auth gate. N6
-(manual RBAC/squad-isolation verification) confirmed against both the local dev server and the
-deployed URL — exec sees the cross-squad aggregate, engineer accounts are scoped to their own
-squad only.
+- **`fetch_incident_labeled_issues` had a real, previously-hidden bug**: GitHub's REST `labels`
+  query param is an AND filter across every label listed, not OR — `labels=bug,incident` only
+  ever matched an issue carrying *both* labels at once, which nothing realistically does, so it
+  had silently never matched a single issue in this project's history. Fixed by querying each
+  label separately and deduping by issue number, in both `api/app/github_client.py` and
+  `lib/github/queries.ts`. `mttr`/`change_failure_rate` are non-null for `backend` now (1 real
+  closed `bug` issue); still empty/0% elsewhere, where no incident has occurred.
+- `derive_deploy_events`'s CI-tier branch now correlates a workflow run back to the PR it
+  shipped, by matching the run's `head_sha` against merged PRs' `merge_commit_sha`
+  (`api/app/derive.py`, mirrored in `lib/metrics.ts`) — `lead_time_for_changes` was null for
+  every squad before this since the correlation was never implemented. Confirmed against real
+  data: merging a PR on `lhagli-api` populates it now, not just `pr_review_turnaround`, which
+  never needed the correlation.
+- Scheduled ingestion — repo secrets set on `github.com/24mdn/eng-productivity`, weekly cron
+  verified working end-to-end via a real `workflow_dispatch` run against the live Supabase
+  project.
+- 90-day plan — in README.md.
+- Deployment — https://eng-productivity.vercel.app, linked to
+  `github.com/24mdn/eng-productivity`, confirmed publicly reachable with no auth gate.
+- N6 (manual RBAC/squad-isolation verification) — confirmed against both the local dev server
+  and the deployed URL: exec sees the cross-squad aggregate, engineer accounts are scoped to
+  their own squad only.
