@@ -10,9 +10,10 @@ Built as a demo for an Engineering Productivity Lead application at Mal (AI-nati
 digital bank, Abu Dhabi). Styled to match Mal's actual brand (periwinkle background, black/white
 pill buttons, Outfit/Inter type) so it reads as an internal Mal tool, not a generic template.
 
-Full architecture/design rationale: `~/.claude/plans/what-is-your-plan-cuddly-lynx.md`.
 Migration history from the original two-service (FastAPI + Next.js) build to this single-service
 Next.js app: `TRANSITION.md`.
+
+**Live:** https://eng-productivity.vercel.app · **Source:** https://github.com/24mdn/eng-productivity
 
 ## Architecture
 
@@ -37,34 +38,76 @@ manually to populate `metrics_snapshots`; it never serves a live request.
 | Milestone | State |
 |---|---|
 | N1 — Pure metric formulas (17/17 tests, both Python and TS) | ✅ done |
-| N2 — Supabase schema/RLS applied, 4 demo users seeded | ✅ done |
-| N3 — Real GitHub ingestion for all 3 squads | ✅ done |
+| N2 — Supabase schema/RLS applied, 6 demo users seeded | ✅ done |
+| N3 — Real GitHub ingestion for all 5 squads | ✅ done |
 | N4 — RBAC matrix verified live (real JWTs, real data) | ✅ done |
 | N5 — FastAPI read path removed, moved into Next.js Server Components | ✅ done |
-| N6 — Manual end-to-end browser verification | ⏳ up to you |
-| Deployment (single Next.js project, Vercel) | ⏳ not started |
-| Scheduled ingestion (GitHub Actions, weekly + on-demand) | ✅ done |
+| N6 — Manual end-to-end browser verification | ✅ done |
+| Deployment (single Next.js project, Vercel) | ✅ done — https://eng-productivity.vercel.app |
+| Scheduled ingestion (GitHub Actions, weekly + on-demand) | ✅ workflow in place |
 
 **Demo accounts** (Supabase Auth, password `change-me-now-123!` for all): `exec@mal-demo.local`
-(no squad), `engineer-backend@mal-demo.local` → `backend`, `engineer-web@mal-demo.local` →
-`omnirealestate-frontend`, `engineer-mobile@mal-demo.local` → `omnirealestate-api`.
-`engineer-web`/`engineer-mobile` were reassigned from their original dormant `lhagli-*` squads
-so at least two engineer logins have real, non-empty drill-down data to manually verify against
-— `users.squad_id` is a live column, not a fixed mapping, so this is a normal data change, not a
-schema change.
+(no squad, sees the aggregate) and one engineer account per squad — `engineer-backend@`,
+`engineer-web@`, `engineer-mobile@`, `engineer-omnirealestate-api@`,
+`engineer-omnirealestate-frontend@` (all `@mal-demo.local`) — each scoped to its own squad only.
 
 **Squads** (each a real GitHub repo owned by `24mdn`, read from the `squads` table — see
 `supabase/migrations/`): `backend` → `lhagli-api`, `web` → `lhagli-user-panel`, `mobile` →
 `lhagli-mobile`, `omnirealestate-api` → `omnirealestate-api`, `omnirealestate-frontend` →
-`omnirealestate-frontend`. The three `lhagli-*` squads run on the **raw-commit** deploy-proxy
-tier (see Known gotchas) — none of them use pull requests at all, so `deployment_frequency`
-counts commits on the default branch, and PR-only metrics (lead time, review turnaround) stay
-empty for them. `omnirealestate-frontend` is also raw-commit (it has zero PRs too — the real
-work lives on its `develop` branch, which is why `develop`, not `main`, is now each
-`omnirealestate-*` repo's GitHub default branch). `omnirealestate-api` is the one squad with
-real CI/CD (`has_actions=true`, `deploy_proxy=workflow_run`) — a scheduled dependency-graph
-Actions workflow, not an application deploy, so treat its "shipping pace" number as a real but
-not especially meaningful signal.
+`omnirealestate-frontend`. All 5 now run on the **workflow_run** deploy-proxy tier
+(`has_actions=true`) — each repo has a real GitHub Actions CI workflow (triggered on push to its
+default branch), so `deployment_frequency`/`change_failure_rate`/`mttr` come from actual CI run
+outcomes, not a commit- or merge-count proxy. None of the 5 repos have ever used pull requests
+(solo/AI-assisted development pushed straight to the default branch), so PR-only metrics (lead
+time, review turnaround) stay empty across the board — that's a real, disclosed data gap, not a
+bug. `omnirealestate-api`'s workflow predates this project and is a scheduled dependency-graph
+job, not an app deploy — see **Known limitation** below.
+
+## Data sources
+
+Two live source systems, both under the GitHub umbrella but functionally distinct:
+
+1. **GitHub REST + GraphQL API** (`lib/github/`, `api/app/github_client.py`) — commits, pull
+   requests, reviews, issues. Backs lead time, review turnaround, and the change-failure/MTTR
+   incident signal.
+2. **GitHub Actions API** (workflow runs) — backs deployment frequency, change failure rate, and
+   MTTR's deploy-correlation, via real CI run success/failure on each repo's default branch. This
+   is the "CI/CD provider" source, not a restatement of #1: it's a separate endpoint, a separate
+   event type (a completed run, not a commit or PR), and the thing that actually distinguishes
+   "code was pushed" from "code was validated and would have shipped."
+
+No project-management tool (Linear/Jira/Notion) is connected — everything here comes from the
+two GitHub-family sources above. Nothing is fetched live on dashboard page load; both sources are
+pulled by the offline ingestion job (`api/`) ahead of time into Postgres — see **Architecture**.
+
+## Metrics: live vs. seeded
+
+| Metric | Type | Status |
+|---|---|---|
+| Deployment frequency | DORA | Live — real Actions run outcomes |
+| Lead time for changes | DORA | Live (empty for these repos — no PRs exist to measure from) |
+| Change failure rate | DORA | Live — real Actions run outcomes |
+| MTTR | DORA | Live (empty for these repos — no labeled incidents/reverts yet) |
+| PR review turnaround | SPACE (Efficiency/Flow) | Live (empty for these repos — no PRs exist) |
+
+**Every metric is computed from live data** — none are manually entered or hand-authored. The
+only thing that's seeded/synthetic in this project is the **6 demo login accounts**
+(fixed emails + one shared password, created by `api/app/seed_users.py`) — those exist because
+this is a solo demo project with no real company directory to authenticate against, not because
+any metric value is fabricated. A metric reading "empty" above means the underlying GitHub data
+genuinely doesn't exist yet (e.g. these repos have never had a pull request), not that it was
+seeded with placeholder numbers.
+
+## Known limitation (what I'd fix next)
+
+**The deployment signal is CI success, not a literal production release.** `deployment_frequency`
+counts a successful GitHub Actions run on the default branch as a "deploy" because none of the 5
+demo repos have a real deploy target wired into Actions yet (no hosting credentials, no deploy
+step beyond a placeholder echo — see each repo's `.github/workflows/ci.yml`). It's a legitimate,
+hard-to-game proxy (a real CI pipeline genuinely has to pass), but it's not the same claim as "we
+shipped code to production N times this week." The next fix: wire at least one repo's workflow to
+a real deploy target (e.g. a Vercel/Render preview or production deploy step) so that squad's
+number reflects an actual release, not just a passing build.
 
 ## Running locally
 
@@ -136,13 +179,22 @@ uv/venv.
   still 404'd on every one of them because "Repository permissions" (Contents/Issues/Actions/Pull
   requests → Read-only) hadn't been set. `GET /user/repos` with the token is the fast way to
   check what it can actually see, independent of what you think you selected.
-- **All 3 target repos have zero pull requests ever, not just zero this window.** Solo/AI-assisted
-  development (commits authored by `replit-agent`) pushed straight to `main`. The deploy-event
-  proxy (`lib/metrics.ts`'s `deriveDeployEvents`, mirrored in `api/app/derive.py`'s
-  `derive_deploy_events` for ingestion) has three tiers, most-to-least authoritative: real CI/CD
-  (`hasActions`) → merged-PR-to-default-branch → raw commits on the default branch. All 3 squads
-  currently run on the last, least-authoritative tier — surfaced via `deployProxy` on every squad
-  and disclosed in the UI's caveat banner.
+- **All 5 target repos have zero pull requests ever, not just zero this window.** Solo/AI-assisted
+  development pushed straight to the default branch. The deploy-event proxy (`lib/metrics.ts`'s
+  `deriveDeployEvents`, mirrored in `api/app/derive.py`'s `derive_deploy_events` for ingestion)
+  has three tiers, most-to-least authoritative: real CI/CD (`hasActions`) →
+  merged-PR-to-default-branch → raw commits on the default branch. All 5 squads now run on the
+  first, most-authoritative tier (a CI workflow was added to each repo that lacked one) —
+  surfaced via `deployProxy` on every squad and disclosed in the UI's caveat banner. The
+  zero-PRs fact still stands though, which is why lead time and review turnaround stay empty
+  regardless of the deploy-proxy tier — those two metrics need a PR to measure from, not a
+  deploy event.
+- **`lhagli-mobile`'s CI workflow fails consistently, on purpose left unfixed.** It's a real
+  strict-typecheck failure (10 genuine pre-existing TypeScript errors in that repo's `app/`/
+  `src/`, confirmed unrelated to the workflow itself), not a broken workflow — so that squad's
+  `deployment_frequency` correctly reads 0 (no successful run exists to count). Fixing the
+  underlying app bugs is out of scope for this project; the honest signal was left as-is rather
+  than loosened until it went green.
 - **Next.js pinned to the 15.x line (currently 15.5.23), not 16.x.** 16.3.0 (npm `latest` at the
   time this was built) has a genuine bug in its static-export pipeline — `next build` crashes
   prerendering the internal `/404`/`/_global-error` fallback with `Cannot read properties of null

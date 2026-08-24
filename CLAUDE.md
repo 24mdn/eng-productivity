@@ -41,7 +41,18 @@ see `TRANSITION.md`/git history if you need the old design).
   week they resolved to alongside the records, so the UI can say what it's showing instead of
   implying the records cover every week in the snapshot table above them. A `requireExec()`/
   `requireSquadAccess()` guard mirrors the old FastAPI route-level RBAC as a fast-fail layer —
-  RLS is still the real enforcement underneath.
+  RLS is still the real enforcement underneath. Each metric has its own sample-size column on
+  `metrics_snapshots` (`METRIC_COLUMNS[key].sampleSizeColumn`) — don't reuse the bare
+  `sample_size` column (deployment_frequency's own) as a stand-in weight for the other 4 metrics
+  in `getAggregateSnapshotsInternal`'s cross-squad weighting; that was a real bug (each metric's
+  weighted rollup was silently using deploy count as its weight regardless of that metric's own
+  underlying volume) fixed via `supabase/migrations/20260824180000_per_metric_sample_size.sql`.
+- `components/drill-down-table.tsx`'s `DrillDownTable` takes a `hideActor` prop, set on the exec
+  drill-down page only (`app/dashboard/exec/[metric]/page.tsx`) — an org-level exec/CEO-office
+  summary must never expose which individual engineer authored a PR/commit; the engineer
+  (squad-level) drill-down keeps the Actor column since that audience needs per-person
+  accountability within their own squad. If you add another cross-squad/exec-facing view that
+  renders `DrillDownRecord`s, pass `hideActor` there too.
 - `lib/squads.ts` — squad → GitHub repo metadata, read from the `squads` table (single source of
   truth, `cache()`-wrapped). `api/app/squads.py` is ingestion's separate copy of the same table
   access, kept in sync only in the sense that both read the same rows — there's no shared code
@@ -52,7 +63,7 @@ see `TRANSITION.md`/git history if you need the old design).
   (used to build the RLS-scoped Postgres client directly). All wrapped in React `cache()` so
   `layout.tsx` and the page below it don't double-fetch. `lib/supabase/client.ts` is browser-only,
   used solely by the login form and the logout control.
-- No `middleware.ts` — a deliberate choice for 4 fixed demo users in one sitting (a stale session
+- No `middleware.ts` — a deliberate choice for 6 fixed demo users in one sitting (a stale session
   just means re-login, not a security gap — RLS doesn't depend on middleware existing).
 - `components/proxy-caveat-banner.tsx` takes a `squads: SquadMeta[]` prop and picks its copy from
   each squad's `deployProxy` tier (`workflow_run` | `merge_to_default` | `commit`) — don't
@@ -88,7 +99,14 @@ see `TRANSITION.md`/git history if you need the old design).
 
 ## What's left
 
-- **N6** — manual browser verification, reserved for the user: log in as each of the 4 seeded
-  accounts and confirm squad isolation / exec aggregation render correctly.
-- **Deployment** — the app now deploys as a single Next.js project (Vercel). Ingestion
-  (`api/`) stays a manual/offline job, unrelated to the web app's deployment.
+- **Scheduled ingestion secrets** — `.github/workflows/ingest.yml` needs `SUPABASE_URL`,
+  `SUPABASE_SERVICE_ROLE_KEY`, and `INGEST_GITHUB_TOKEN` set as repo secrets on
+  `github.com/24mdn/eng-productivity` (Settings → Secrets and variables → Actions) for the
+  weekly cron to actually run — manual `python -m app.ingest_cli` always works regardless.
+- **90-day plan / day-90 proof point** — not yet written anywhere in this repo.
+- A real deploy target on at least one repo's CI workflow — see README's "Known limitation."
+- N6 (manual RBAC/squad-isolation verification) was done against the local dev server; not yet
+  separately re-confirmed against the deployed URL.
+
+Done: deployment (https://eng-productivity.vercel.app, linked to
+`github.com/24mdn/eng-productivity`), confirmed publicly reachable with no auth gate.
