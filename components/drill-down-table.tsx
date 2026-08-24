@@ -9,8 +9,18 @@ import {
 import type { DrillDownRecord } from "@/lib/metrics-repository";
 import { formatDateTime } from "@/lib/format";
 
-/** The literal "receipts" requirement — every aggregate number drills down to these rows. */
-export function DrillDownTable({ records }: { records: DrillDownRecord[] }) {
+/** The literal "receipts" requirement — every aggregate number drills down to these rows.
+ * hideActor: the exec/aggregate view is an org-level summary for a CEO-office audience — it
+ * must not expose which individual engineer did what, so it passes this true. The engineer
+ * view (squad-level detail, the intended audience for per-person accountability) leaves it
+ * false. */
+export function DrillDownTable({
+  records,
+  hideActor = false,
+}: {
+  records: DrillDownRecord[];
+  hideActor?: boolean;
+}) {
   if (records.length === 0) {
     return (
       <p className="px-2 py-6 text-sm text-muted-foreground">
@@ -31,7 +41,7 @@ export function DrillDownTable({ records }: { records: DrillDownRecord[] }) {
           {showSquad && <TableHead>Squad</TableHead>}
           <TableHead>Record</TableHead>
           <TableHead>Detail</TableHead>
-          <TableHead>Actor</TableHead>
+          {!hideActor && <TableHead>Actor</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -58,9 +68,11 @@ export function DrillDownTable({ records }: { records: DrillDownRecord[] }) {
             <TableCell className="whitespace-normal text-muted-foreground">
               {record.detail}
             </TableCell>
-            <TableCell className="text-muted-foreground">
-              {record.actorLogin ?? "—"}
-            </TableCell>
+            {!hideActor && (
+              <TableCell className="text-muted-foreground">
+                {record.actorLogin ?? "—"}
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>

@@ -66,9 +66,14 @@ def _build_week_row(squad_id: str, week: derive.WeekWindow, derived: DerivedInpu
         "pr_review_turnaround_hours": review_turnaround.value,
         "prs_merged": len(prs_merged_in_week),
         "commits_per_engineer": commits_per_engineer,
-        # sample_size uses deployment frequency's count as the primary volume signal for the
-        # week — the UI shows it as "based on N records" next to the deploy-frequency card.
+        # Each metric gets its own sample size — they're not interchangeable (e.g. lead time's
+        # count is "deploys that had a matched PR with a first commit," not "deploys").
+        # sample_size (unqualified) is deployment_frequency's own, kept as the original column.
         "sample_size": deploy_freq.sample_size,
+        "lead_time_for_changes_sample_size": lead_time.sample_size,
+        "change_failure_rate_sample_size": change_failure.sample_size,
+        "mttr_sample_size": mttr_result.sample_size,
+        "pr_review_turnaround_sample_size": review_turnaround.sample_size,
     }
 
 

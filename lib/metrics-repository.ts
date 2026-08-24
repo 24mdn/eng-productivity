@@ -68,20 +68,51 @@ interface MetricsSnapshotRow {
   change_failure_rate_pct: number | null;
   mttr_hours: number | null;
   pr_review_turnaround_hours: number | null;
+  // Each metric has its own sample size — they're not interchangeable (e.g. lead time's count
+  // is "deploys with a matched PR," not "deploys"). `sample_size` (unqualified) belongs to
+  // deployment_frequency only; don't reuse it as a stand-in weight for the other 4.
   sample_size: number;
+  lead_time_for_changes_sample_size: number | null;
+  change_failure_rate_sample_size: number | null;
+  mttr_sample_size: number | null;
+  pr_review_turnaround_sample_size: number | null;
 }
 
-// metric_key -> (metrics_snapshots column, unit). Keep in sync with api/app/metrics_service.py's
-// METRIC_COLUMNS if either side ever changes.
+// metric_key -> (metrics_snapshots value column, its own sample-size column, unit). Keep in
+// sync with api/app/metrics_service.py's METRIC_COLUMNS if either side ever changes.
 const METRIC_COLUMNS: Record<
   MetricKey,
-  { column: keyof MetricsSnapshotRow; unit: MetricSnapshotRow["unit"] }
+  {
+    column: keyof MetricsSnapshotRow;
+    sampleSizeColumn: keyof MetricsSnapshotRow;
+    unit: MetricSnapshotRow["unit"];
+  }
 > = {
-  deployment_frequency: { column: "deployment_frequency", unit: "count" },
-  lead_time_for_changes: { column: "lead_time_for_changes_hours", unit: "hours" },
-  change_failure_rate: { column: "change_failure_rate_pct", unit: "percent" },
-  mttr: { column: "mttr_hours", unit: "hours" },
-  pr_review_turnaround: { column: "pr_review_turnaround_hours", unit: "hours" },
+  deployment_frequency: {
+    column: "deployment_frequency",
+    sampleSizeColumn: "sample_size",
+    unit: "count",
+  },
+  lead_time_for_changes: {
+    column: "lead_time_for_changes_hours",
+    sampleSizeColumn: "lead_time_for_changes_sample_size",
+    unit: "hours",
+  },
+  change_failure_rate: {
+    column: "change_failure_rate_pct",
+    sampleSizeColumn: "change_failure_rate_sample_size",
+    unit: "percent",
+  },
+  mttr: {
+    column: "mttr_hours",
+    sampleSizeColumn: "mttr_sample_size",
+    unit: "hours",
+  },
+  pr_review_turnaround: {
+    column: "pr_review_turnaround_hours",
+    sampleSizeColumn: "pr_review_turnaround_sample_size",
+    unit: "hours",
+  },
 };
 
 function emptySeries(): Record<MetricKey, MetricSnapshotRow[]> {
@@ -95,14 +126,14 @@ function rowsToMetricSeries(rows: MetricsSnapshotRow[]): Record<MetricKey, Metri
   const sorted = [...rows].sort((a, b) => a.week_start.localeCompare(b.week_start));
   for (const row of sorted) {
     for (const metricKey of METRIC_KEYS) {
-      const { column, unit } = METRIC_COLUMNS[metricKey];
+      const { column, sampleSizeColumn, unit } = METRIC_COLUMNS[metricKey];
       series[metricKey].push({
         weekStart: new Date(row.week_start),
         weekEnd: new Date(row.week_end),
         metricKey,
         value: row[column] as number | null,
         unit,
-        sampleSize: row.sample_size,
+        sampleSize: (row[sampleSizeColumn] as number | null) ?? 0,
       });
     }
   }
@@ -130,8 +161,11 @@ async function getSquadSnapshotsInternal(squadId: string): Promise<Record<Metric
 // port of get_aggregate_snapshots. Cross-squad rollup: sum for deployment_frequency,
 // sample-size-weighted mean for rates/times (NOT a naive mean-of-percentages/mean-of-medians,
 // which would misweight squads with different sample sizes) — pandas groupby in the Python
-// version, plain Map/reduce here. sample_size in the output row is the sum across ALL squads
-// that week, not just the ones with a non-null value for a given metric.
+// version, plain Map/reduce here. Each metric weights by *its own* sample-size column (see
+// METRIC_COLUMNS.sampleSizeColumn), not a shared one — lead time, change failure rate, MTTR,
+// and review turnaround each have different underlying counts, so reusing deployment_frequency's
+// count as everyone's weight would silently misweight the rollup. The sampleSize on each output
+// row is that metric's own sum across only the squads with a non-null value that week.
 async function getAggregateSnapshotsInternal(): Promise<Record<MetricKey, MetricSnapshotRow[]>> {
   const supabase = await getRlsSupabaseClient();
   if (!supabase) return emptySeries();
@@ -158,20 +192,20 @@ async function getAggregateSnapshotsInternal(): Promise<Record<MetricKey, Metric
   for (const weekStart of [...byWeek.keys()].sort()) {
     const group = byWeek.get(weekStart)!;
     const weekEnd = group[0].week_end;
-    const totalSampleSize = group.reduce((sum, r) => sum + r.sample_size, 0);
 
     for (const metricKey of METRIC_KEYS) {
-      const { column, unit } = METRIC_COLUMNS[metricKey];
+      const { column, sampleSizeColumn, unit } = METRIC_COLUMNS[metricKey];
       const withValue = group.filter((r) => r[column] != null);
+      const weight = (r: MetricsSnapshotRow) => (r[sampleSizeColumn] as number | null) ?? 0;
+      const metricSampleSize = withValue.reduce((s, r) => s + weight(r), 0);
       let value: number | null;
       if (metricKey === "deployment_frequency") {
         value = withValue.length > 0
           ? withValue.reduce((s, r) => s + (r[column] as number), 0)
           : null;
       } else {
-        const weightSum = withValue.reduce((s, r) => s + r.sample_size, 0);
-        value = withValue.length > 0 && weightSum > 0
-          ? withValue.reduce((s, r) => s + (r[column] as number) * r.sample_size, 0) / weightSum
+        value = withValue.length > 0 && metricSampleSize > 0
+          ? withValue.reduce((s, r) => s + (r[column] as number) * weight(r), 0) / metricSampleSize
           : null;
       }
       series[metricKey].push({
@@ -180,7 +214,7 @@ async function getAggregateSnapshotsInternal(): Promise<Record<MetricKey, Metric
         metricKey,
         value,
         unit,
-        sampleSize: totalSampleSize,
+        sampleSize: metricSampleSize,
       });
     }
   }

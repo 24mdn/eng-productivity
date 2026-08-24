@@ -109,7 +109,7 @@ export default async function ExecMetricDrillDownPage({
             : "No ingested weeks yet."}
         </p>
         <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/70 shadow-sm">
-          <DrillDownTable records={sortedRecords} />
+          <DrillDownTable records={sortedRecords} hideActor />
         </div>
       </section>
     </div>
