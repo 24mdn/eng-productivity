@@ -1,0 +1,37 @@
+name: Weekly metrics ingestion
+
+on:
+  schedule:
+    # 03:00 UTC every Monday — after the ISO week (Mon-Sun) that metrics_snapshots
+    # aggregates has fully closed.
+    - cron: "0 3 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pure-formula tests (pre-flight gate)
+        run: pytest
+
+      - name: Run ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GITHUB_TOKEN: ${{ secrets.INGEST_GITHUB_TOKEN }}
+        run: python -m app.ingest_cli
