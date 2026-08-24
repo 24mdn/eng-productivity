@@ -105,8 +105,9 @@ see `TRANSITION.md`/git history if you need the old design).
   weekly cron to actually run — manual `python -m app.ingest_cli` always works regardless.
 - **90-day plan / day-90 proof point** — not yet written anywhere in this repo.
 - A real deploy target on at least one repo's CI workflow — see README's "Known limitation."
-- N6 (manual RBAC/squad-isolation verification) was done against the local dev server; not yet
-  separately re-confirmed against the deployed URL.
 
 Done: deployment (https://eng-productivity.vercel.app, linked to
-`github.com/24mdn/eng-productivity`), confirmed publicly reachable with no auth gate.
+`github.com/24mdn/eng-productivity`), confirmed publicly reachable with no auth gate. N6
+(manual RBAC/squad-isolation verification) confirmed against both the local dev server and the
+deployed URL — exec sees the cross-squad aggregate, engineer accounts are scoped to their own
+squad only.
