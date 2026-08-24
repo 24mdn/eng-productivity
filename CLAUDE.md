@@ -99,12 +99,20 @@ see `TRANSITION.md`/git history if you need the old design).
 
 ## What's left
 
-- **Scheduled ingestion secrets** — `.github/workflows/ingest.yml` needs `SUPABASE_URL`,
-  `SUPABASE_SERVICE_ROLE_KEY`, and `INGEST_GITHUB_TOKEN` set as repo secrets on
-  `github.com/24mdn/eng-productivity` (Settings → Secrets and variables → Actions) for the
-  weekly cron to actually run — manual `python -m app.ingest_cli` always works regardless.
-- **90-day plan / day-90 proof point** — not yet written anywhere in this repo.
 - A real deploy target on at least one repo's CI workflow — see README's "Known limitation."
+- `lead_time_for_changes` stays null on every squad now that all 5 run on the `workflow_run`
+  deploy-proxy tier — `derive_deploy_events`'s CI-tier branch never sets
+  `pull_request_number` (`api/app/derive.py:217`, mirrored in `lib/metrics.ts`), so there's no
+  deploy-event → PR correlation to compute lead time from even when a real PR exists (confirmed
+  directly: merging a real PR on `lhagli-api` populated `pr_review_turnaround`, which doesn't
+  need that correlation, but left `lead_time_for_changes` null). Fixing it means fetching each
+  workflow run's `head_sha` and each PR's `merge_commit_sha` (neither is fetched today —
+  `FetchedWorkflowRun`/`FetchedPullRequest` don't have those fields) and matching them, in both
+  `derive.py` and its `lib/metrics.ts` mirror.
+
+Done: scheduled ingestion (repo secrets set, weekly cron verified working end-to-end via a real
+`workflow_dispatch` run against the live Supabase project), 90-day plan (in README.md),
+deployment (https://eng-productivity.vercel.app, linked to
 
 Done: deployment (https://eng-productivity.vercel.app, linked to
 `github.com/24mdn/eng-productivity`), confirmed publicly reachable with no auth gate. N6
