@@ -29,16 +29,6 @@ jobs:
       - name: Run pure-formula tests (pre-flight gate)
         run: pytest
 
-      - name: Debug secret visibility (temporary)
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          INGEST_GITHUB_TOKEN: ${{ secrets.INGEST_GITHUB_TOKEN }}
-        run: |
-          echo "SUPABASE_URL length: ${#SUPABASE_URL}"
-          echo "SUPABASE_SERVICE_ROLE_KEY length: ${#SUPABASE_SERVICE_ROLE_KEY}"
-          echo "INGEST_GITHUB_TOKEN length: ${#INGEST_GITHUB_TOKEN}"
-
       - name: Run ingestion
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
