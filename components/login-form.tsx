@@ -15,10 +15,10 @@ const DEMO_ACCOUNTS = [
   { email: "engineer-backend@mal-demo.local", label: "Engineer — Backend" },
   { email: "engineer-web@mal-demo.local", label: "Engineer — Web" },
   { email: "engineer-mobile@mal-demo.local", label: "Engineer — Mobile" },
-  { email: "engineer-omnirealestate-api@mal-demo.local", label: "Engineer — OmniRealEstate API" },
+  { email: "engineer-omnirealestate-api@mal-demo.local", label: "Engineer — Platform API" },
   {
     email: "engineer-omnirealestate-frontend@mal-demo.local",
-    label: "Engineer — OmniRealEstate Frontend",
+    label: "Engineer — Platform Frontend",
   },
 ];
 
