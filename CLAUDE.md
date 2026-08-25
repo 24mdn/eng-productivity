@@ -120,8 +120,7 @@ see git history if you need the old design).
   verified working end-to-end via a real `workflow_dispatch` run against the live Supabase
   project.
 - 90-day plan — in README.md.
-- Deployment — https://eng-productivity.vercel.app, linked to
-  `github.com/24mdn/eng-productivity`, confirmed publicly reachable with no auth gate.
+- Deployment — confirmed publicly reachable with no auth gate.
 - N6 (manual RBAC/squad-isolation verification) — confirmed against both the local dev server
   and the deployed URL: exec sees the cross-squad aggregate, engineer accounts are scoped to
   their own squad only.

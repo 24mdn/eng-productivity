@@ -5,8 +5,6 @@ numbers), computes DORA + one SPACE metric, and serves two RBAC-separated views 
 aggregated across every squad, and a per-squad engineer view where every number drills down to
 the underlying PRs/deploys/incidents ("receipts").
 
-**Live:** https://eng-productivity.vercel.app
-**Repo:** https://github.com/24mdn/eng-productivity
 
 Demo accounts (exec + one engineer per squad) are listed directly on the login page — click one
 to fill the form, no credentials needed here.
