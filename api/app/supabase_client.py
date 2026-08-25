@@ -3,7 +3,7 @@ service-role key, bypasses RLS entirely. Used only by ingest.py/seed_users.py, w
 outside any user session — never use this to serve a user-facing read.
 
 The read path (previously served by this API via a token-scoped client) now lives in the
-Next.js app (lib/metrics-repository.ts, lib/supabase/rls-client.ts) — see TRANSITION.md.
+Next.js app (lib/metrics-repository.ts, lib/supabase/rls-client.ts) — see git history.
 """
 
 from __future__ import annotations

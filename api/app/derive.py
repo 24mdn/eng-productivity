@@ -211,11 +211,12 @@ def derive_deploy_events(
        straight to the default branch) simply won't match anything, and pull_request_number
        stays None, same as before this correlation existed.
     2. PR-merge proxy: no Actions workflows, but PRs get merged to the default branch — each
-       merge stands in for a "deploy" (lhagli-api's confirmed profile when it still used PRs).
-    3. Raw-commit proxy: no Actions AND zero merged PRs ever (confirmed empirically for all
-       three lhagli-* repos — solo/AI-assisted development pushed straight to main, no PR
-       workflow at all) — each commit on the default branch stands in for a "deploy". This is
-       the least authoritative tier and should be disclosed most prominently in the UI.
+       merge stands in for a "deploy" (confirmed profile for one squad's repo while it still
+       used PRs).
+    3. Raw-commit proxy: no Actions AND zero merged PRs ever (confirmed empirically for several
+       target repos — solo/AI-assisted development pushed straight to main, no PR workflow at
+       all) — each commit on the default branch stands in for a "deploy". This is the least
+       authoritative tier and should be disclosed most prominently in the UI.
     """
     if has_actions:
         merge_sha_to_pr = {

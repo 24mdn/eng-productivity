@@ -129,7 +129,7 @@ class GithubClient:
 
     async def inspect_repo(self, owner: str, repo: str) -> RepoInspection:
         """Checked at the start of every ingestion — never assume a repo has CI/CD. This is
-        exactly the check that surfaced lhagli-api has no workflows."""
+        exactly the check that surfaces whether a repo has no workflows."""
         repo_resp = await self._client.get(f"/repos/{owner}/{repo}")
         repo_resp.raise_for_status()
         repo_data = repo_resp.json()

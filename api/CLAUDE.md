@@ -1,7 +1,7 @@
 # api/ — GitHub ingestion (Python)
 
-See the root `README.md` for the architecture overview and `TRANSITION.md` for why this used to
-be a FastAPI service. This file is implementation-detail context for future Claude Code sessions
+See the root `README.md` for the architecture overview; see git history for why this used to be
+a FastAPI service. This file is implementation-detail context for future Claude Code sessions
 working specifically in this directory. For the Next.js side (the dashboard's read path, which
 used to live here), see `../CLAUDE.md`.
 
@@ -46,7 +46,7 @@ route-level RBAC duplicating it — see `../CLAUDE.md`).
 
 **Never add a user-facing read here using the service-role client.** If a future change needs
 this service to read data back, use a token-scoped client the way the old `metrics_service.py`
-did (see git history / `TRANSITION.md`), not the service-role one.
+did (see git history), not the service-role one.
 
 ## The deploy-event proxy cascade (`derive.py`'s `derive_deploy_events`)
 

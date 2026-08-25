@@ -7,10 +7,10 @@ export interface RepoInspection {
 }
 
 /**
- * Checked at the start of every ingestion — never assume a repo has CI/CD.
- * `lhagli-api` (the reference repo for this prototype) has no `.github/workflows`,
- * so deployment frequency/change-failure-rate/MTTR fall back to a merge-to-default-branch
- * proxy. The UI must disclose that proxy rather than silently fake real CI/CD data.
+ * Checked at the start of every ingestion — never assume a repo has CI/CD. A repo with no
+ * `.github/workflows` falls back to a merge-to-default-branch proxy for deployment frequency/
+ * change-failure-rate/MTTR. The UI must disclose that proxy rather than silently fake real
+ * CI/CD data.
  */
 export async function inspectRepo(
   octokit: GithubClient,

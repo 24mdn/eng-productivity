@@ -3,7 +3,7 @@
  * client scoped to the caller's own Supabase access token (lib/supabase/rls-client.ts) —
  * Postgres RLS is the real enforcement, this file just shapes queries/responses and does a
  * fast-fail role/squad guard on top (mirrors the two-layer design api/'s FastAPI used to have,
- * before the read path moved here — see TRANSITION.md). No UI component queries Supabase or
+ * before the read path moved here — see git history). No UI component queries Supabase or
  * calls GitHub directly.
  */
 import { getCurrentProfile } from "@/lib/supabase/server";

@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mal Engineering Productivity",
+  title: "Engineering Productivity",
   description: "Real, objective engineering delivery data — pulled from GitHub, not self-reported.",
 };
 

@@ -1,6 +1,6 @@
 """Run: python -m app.ingest_cli
 Loops SQUADS, ingests each squad's repo independently (each repo is inspected for has_actions
-on its own — lhagli-api is confirmed to need the merge-proxy, the other two are not assumed to
+on its own — one squad is confirmed to need the merge-proxy tier, the others are not assumed to
 behave the same)."""
 
 from __future__ import annotations

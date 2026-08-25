@@ -54,7 +54,7 @@
 }
 
 :root {
-  /* Mal brand tokens — core surfaces */
+  /* Brand tokens — core surfaces */
   --background: #dbe6f6;
   --foreground: #15161f;
   --card: #fbfcff;
@@ -62,7 +62,7 @@
   --popover: #ffffff;
   --popover-foreground: #15161f;
 
-  /* Primary: black/white, Mal's signature */
+  /* Primary: black/white */
   --primary: #000000;
   --primary-foreground: #ffffff;
 
@@ -176,7 +176,7 @@
       linear-gradient(135deg, #efe6ff 0%, #d8e5ff 52%, #f6d4ee 100%);
   }
 
-  .mal-glass {
+  .glass-panel {
     background: rgb(255 255 255 / 0.7);
     box-shadow: 0 24px 70px rgb(45 67 110 / 0.12);
     backdrop-filter: blur(18px);

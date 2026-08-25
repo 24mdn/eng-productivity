@@ -1,11 +1,11 @@
 @AGENTS.md
 
-# Project: Mal Engineering Productivity prototype
+# Project: Engineering Productivity prototype
 
 See README.md for what this is and current milestone status. This file is implementation-detail
 context for future Claude Code sessions working in this (Next.js) directory. `api/` is now an
-offline GitHub-ingestion job only (see `api/CLAUDE.md`) — it doesn't serve any live request;
-`TRANSITION.md` has the full history of why the FastAPI read path was removed and moved here.
+offline GitHub-ingestion job only (see `api/CLAUDE.md`) — it doesn't serve any live request; see
+git history if you need the old FastAPI-backed design this replaced.
 
 ## Data flow / architecture
 
@@ -21,7 +21,7 @@ The dashboard never talks to GitHub. Every read — weekly aggregates *and* the 
 drill-down "receipts" — comes from Postgres, populated by ingestion ahead of time, not fetched
 live on click (that live-fetch path existed briefly right after the FastAPI removal and was
 replaced once it became clear it had no rate limiting and no resilience to GitHub being slow —
-see `TRANSITION.md`/git history if you need the old design).
+see git history if you need the old design).
 
 - `lib/metrics-repository.ts` — every exported function resolves the current user's Supabase
   access token (via `lib/supabase/server.ts`'s `getAccessToken()`) into an RLS-scoped Postgres
@@ -83,9 +83,9 @@ see `TRANSITION.md`/git history if you need the old design).
   (`/dashboard/engineer/[metric]`), object keys, and Postgres's `metric_key`-shaped columns. Keep
   them in sync across both languages if you ever rename one (`api/app/derive.py`'s
   `METRIC_COLUMNS`-equivalent naming is the Python side of this).
-- Brand tokens are hex values in `app/globals.css` `:root` (see README's "Design tokens"). Reuse
-  `var(--chart-1..5)` for anything metric-colored rather than picking new colors.
-- No dark mode — Mal's brand here is a fixed light palette; don't add `prefers-color-scheme`
+- Brand tokens are hex values in `app/globals.css` `:root` (not oklch — deliberately, to match
+  the brand spec exactly). Reuse `var(--chart-1..5)` for anything metric-colored.
+- No dark mode — this app's brand is a fixed light palette; don't add `prefers-color-scheme`
   handling unless asked.
 - Role guards: `exec/page.tsx` redirects non-exec users to `/dashboard/engineer`, and
   `engineer/page.tsx`/`engineer/[metric]/page.tsx` redirect non-engineer users (i.e. exec) back to
@@ -114,8 +114,8 @@ see `TRANSITION.md`/git history if you need the old design).
   shipped, by matching the run's `head_sha` against merged PRs' `merge_commit_sha`
   (`api/app/derive.py`, mirrored in `lib/metrics.ts`) — `lead_time_for_changes` was null for
   every squad before this since the correlation was never implemented. Confirmed against real
-  data: merging a PR on `lhagli-api` populates it now, not just `pr_review_turnaround`, which
-  never needed the correlation.
+  data: merging a PR on the `backend` squad's repo populates it now, not just
+  `pr_review_turnaround`, which never needed the correlation.
 - Scheduled ingestion — repo secrets set on `github.com/24mdn/eng-productivity`, weekly cron
   verified working end-to-end via a real `workflow_dispatch` run against the live Supabase
   project.
