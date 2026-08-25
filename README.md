@@ -68,25 +68,77 @@ to a real deploy step (Vercel/Render) so that squad's number reflects an actual 
 
 ## 90-day plan
 
-This prototype (5 demo repos, 2 sources, 5 metrics) proves the architecture, not the finished
-mandate. If this became the real role, solo, over the next 90 days:
+This prototype proves the core pattern — automated ingestion, RLS-backed access control, squad
+and exec views, metric receipts. In the real role, solo, the next 90 days turn it from a demo
+into the org's actual operating system for engineering productivity:
 
-- **Days 1-30:** point the same pipeline at the real Tech domain's repos (`squads` is a table,
-  not a hardcoded list, for exactly this reason); add a genuine third source — a sprint/PM tool
-  for cycle time and sprint completion, the metric family the JD names that this prototype
-  doesn't have; wire a real deploy target on at least one workflow.
-- **Days 31-60:** publish a real cycle-time/deployment-frequency baseline per squad from 30 days
-  of real data, then ship one concrete intervention the data justifies (e.g. surfacing
-  stuck-PR reviews on the lead's dashboard) and confirm it actually moves the number.
-- **Days 61-90:** add one non-engineering domain's KPIs as a second tab on the same exec view,
-  using the same ingestion → Postgres/RLS → dashboard pattern already built — the direct test of
-  whether the architecture scales without a rebuild.
+**Days 1-15 — metric contract and source mapping.**
+- Lock the metric contract with Tech leadership and the CEO office: deployment frequency, cycle
+  time, review turnaround, sprint completion, change failure rate, MTTR — each with a defined
+  source of truth, denominator, and known way it can be gamed.
+- Map every Tech squad to its repos, CI/CD workflows, and sprint-board projects.
+- Set the access rule everything downstream depends on: CEO office sees squad/org-level trends
+  and receipts, never a raw engineer-level ranking.
 
-**Day-90 proof point**, checkable by a non-technical reader with no engineer involved: open the
-exec dashboard (already logged in). It shows every active squad's deployment frequency and
-change failure rate trending against their day-1 baseline, a "last updated" timestamp proving
-it's live, and one non-engineering KPI panel on the same page. Nothing was typed in by hand —
-every number traces back to a receipt.
+*Deliverable: a versioned metric dictionary and source map covering every squad.*
+
+**Days 16-30 — production data foundation.**
+- Replace demo repos with the real Tech-org repos, CI/CD, and sprint-board integrations — same
+  ingestion pattern already proven here, pointed at real sources.
+- Add freshness timestamps, backfill support, and failure alerts, so a broken source fails
+  loudly instead of silently going stale.
+- Surface data-quality gaps as they appear (unmapped squads, a CI run that doesn't represent a
+  real deploy) rather than hiding them behind a clean-looking number.
+
+*Deliverable: live ingestion from GitHub, CI/CD, and sprint boards for every squad, with
+data-quality status visible, not just the metrics themselves.*
+
+**Days 31-45 — the unified dashboard.**
+- Ship the production dashboard for both audiences: engineering leads get squad-level detail
+  (cycle time, stuck PRs, sprint completion, receipts); the CEO office gets aggregate trends and
+  risk flags, no raw engineer comparison.
+- Add "why this changed" drilldowns so a metric move is explainable, not decorative.
+- Role-based access control, not URL-based — the same RLS pattern from this prototype, pointed
+  at real accounts.
+
+*Deliverable: one dashboard replacing fragmented manual tracking for the whole Tech org.*
+
+**Days 46-60 — baseline and first intervention.**
+- Establish baseline ranges per squad for deployment frequency, cycle time, review turnaround,
+  and sprint completion.
+- Find the first bottleneck the data actually supports (e.g. PRs stuck waiting on first review)
+  and ship one intervention for it inside the platform — a stale-review alert, not a slide.
+- Measure the before/after against the baseline; it only counts if the number moved.
+
+*Deliverable: one measurable improvement against a real baseline, visible to Tech and the CEO
+office.*
+
+**Days 61-75 — CEO-office operating view.**
+- Partner with business/ops to pick one non-engineering domain (support, compliance ops,
+  whatever's the CEO office's real priority) and model its KPIs with the same discipline: source
+  system, calculation, freshness, receipts.
+- Add it as a second panel on the same exec view — the direct test of whether the architecture
+  scales without a rebuild.
+
+*Deliverable: a first cross-domain KPI rollup next to engineering health, on the same page.*
+
+**Days 76-90 — trust and operating rhythm.**
+- Start the operating rhythm: the CEO office's weekly view comes straight from the platform, not
+  copied screenshots.
+- Add the minimum trust layer a real system needs on top of the day-30 failure alerts: basic
+  access logging and a documented "how each metric is calculated" page. Full governance tooling
+  is a later project, not a day-90 claim.
+- Use the first 90 days of real data to name the next two interventions, not ship them yet.
+
+*Deliverable: a system the CEO office checks weekly on its own, with the next two moves already
+identified from real data.*
+
+**Day-90 proof point**, checkable by a non-technical reader with no engineer involved: open one
+dashboard and see every Tech squad on the same metric set — deployment frequency, cycle time,
+review turnaround, sprint completion, change failure rate, MTTR — trending against its day-1
+baseline; at least one documented improvement from an intervention shipped in the first 60 days;
+one non-engineering domain's KPI panel on the same page; and a freshness timestamp plus a
+receipt behind every number, with no raw engineer ranking anywhere in it.
 
 ## Running locally
 
